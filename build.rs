@@ -1,13 +1,17 @@
 extern crate bindgen;
-
+use cmake::Config;
 use std::env;
 use std::path::PathBuf;
 
 fn main() {
-    // Tell cargo to tell rustc to link the tiledb library.
+    let dst = Config::new("TileDB")
+                 .cflag("-std=c++11")
+                 .build_target("install-tiledb")
+                 .build();
+	// Tell cargo to tell rustc to link the tiledb library.
     println!("cargo:rustc-link-lib=dylib=tiledb");
     // search for the library in a custom location
-    println!("cargo:rustc-link-search=/home/bogdan/TileDB/dist/lib");
+    println!("cargo:rustc-link-search=native={}", dst.join("lib").display());
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=wrapper.hpp");
@@ -22,8 +26,8 @@ fn main() {
         .rustified_enum(".*")
         .generate_inline_functions(true)
         .clang_args(vec![
-            "-I/home/bogdan/TileDB/dist/include",
-            "-std=c++11",
+            format!("-I{}", dst.join("include").display()),
+            "-std=c++11".to_string(),
         ])
         .enable_cxx_namespaces()
         .opaque_type("std::.*")
