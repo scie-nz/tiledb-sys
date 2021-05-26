@@ -1,5 +1,5 @@
 [package]
-name = "tiledb-rust"
+name = "tiledb-rust-bind"
 version = "0.1.0"
 authors = ["Bogdan State <bogdan@scie.nz>"]
 edition = "2018"
