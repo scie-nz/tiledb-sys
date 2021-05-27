@@ -1,20 +1,49 @@
 extern crate bindgen;
-use cmake::Config;
+extern crate fs_extra;
+use fs_extra::dir::{copy, CopyOptions};
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 fn main() {
-    let dst = Config::new("TileDB")
-                 .cflag("-std=c++11")
-                 .build_target("install-tiledb")
-                 .build();
-	// Tell cargo to tell rustc to link the tiledb library.
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let mut options = CopyOptions::new();
+    options.skip_exist = true;
+    options.content_only = true;
+    copy("TileDB", &out_dir, &options).unwrap();
+    let current_dir = env::current_dir().unwrap();
+    Command::new("mkdir")
+        .arg("-p")
+        .arg(format!("{}/build", &out_dir))
+        .arg(".")
+        .status()
+        .expect("failed to run bootstrap");
+    assert!(env::set_current_dir(Path::new(&format!("{}/build", &out_dir))).is_ok());
+    Command::new("../bootstrap")
+        .arg("--enable-s3")
+        .status()
+        .expect("failed to run bootstrap");
+    Command::new("make")
+        .arg("-j")
+        .arg("12")
+        .status()
+        .expect("failed to run make");
+    Command::new("make")
+        .arg("install-tiledb")
+        .status()
+        .expect("failed to run make");
+    assert!(env::set_current_dir(current_dir).is_ok());
+
+    // Tell cargo to tell rustc to link the tiledb library.
     println!("cargo:rustc-link-lib=dylib=tiledb");
     // search for the library in a custom location
-    println!("cargo:rustc-link-search=native={}", dst.join("lib").display());
+    println!(
+        "cargo:rustc-link-search=native={}",
+        format!("{}/dist/lib", &out_dir),
+    );
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
-    println!("cargo:rerun-if-changed=wrapper.hpp");
+    //println!("cargo:rerun-if-changed=wrapper.hpp");
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
@@ -26,7 +55,7 @@ fn main() {
         .rustified_enum(".*")
         .generate_inline_functions(true)
         .clang_args(vec![
-            format!("-I{}", dst.join("include").display()),
+            format!("-I{}/dist/include", &out_dir),
             "-std=c++11".to_string(),
         ])
         .enable_cxx_namespaces()
