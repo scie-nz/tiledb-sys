@@ -1,9 +1,21 @@
 [package]
-name = "tiledb-rust-bind"
-version = "0.1.0"
+name = "tiledb-sys"
+version = "0.1.1"
 authors = ["Bogdan State <bogdan@scie.nz>"]
 edition = "2018"
 links = "tiledb"
+license-file = "LICENSE"
+description = """\
+  Rust bindings to tiledb crate. See \
+  [the TileDB C API reference] \
+  (https://tiledb-inc-tiledb.readthedocs-hosted.\
+  com/en/stable/c-api.html) for details.\
+  """
+homepage = "https://scie.nz/tiledb-rust"
+repository = "https://github.com/scie-nz/tiledb-sys"
+readme = "README.md"
+keywords = ["tiledb", "raster", "array", "s3"]
+categories = ["database", "data-structures", "external-ffi-bindings", "science"]
 
 [dependencies]
 bindgen = "0.58.1"

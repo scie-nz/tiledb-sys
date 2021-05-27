@@ -1,3 +1,4 @@
 [submodule "TileDB"]
 	path = TileDB
 	url = https://github.com/TileDB-Inc/TileDB.git
+	branch = 2.2.1
