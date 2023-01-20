@@ -1,8 +1,8 @@
 [package]
 name = "tiledb-sys"
-version = "0.1.1"
-authors = ["Bogdan State <bogdan@scie.nz>"]
-edition = "2018"
+version = "0.2.0"
+authors = ["Bogdan State <bogdan@scie.nz>", "Matthew Perry <perrygeo@gmail.com>"]
+edition = "2021"
 links = "tiledb"
 license-file = "LICENSE"
 description = """\
@@ -25,3 +25,8 @@ libc = "0.2.95"
 bindgen = "0.58.1"
 cmake = "0.1"
 fs_extra = "1.2.0"
+pkg-config = "0.3.26"
+num_cpus = "1.15.0"
+
+[features]
+vendored = []

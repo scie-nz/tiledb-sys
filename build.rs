@@ -7,43 +7,75 @@ use std::process::Command;
 
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
-    let mut options = CopyOptions::new();
-    options.skip_exist = true;
-    options.content_only = true;
-    copy("TileDB", &out_dir, &options).unwrap();
-    let current_dir = env::current_dir().unwrap();
-    Command::new("mkdir")
-        .arg("-p")
-        .arg(format!("{}/build", &out_dir))
-        .arg(".")
-        .status()
-        .expect("failed to run bootstrap");
-    assert!(env::set_current_dir(Path::new(&format!("{}/build", &out_dir))).is_ok());
-    Command::new("../bootstrap")
-        .arg("--enable-s3")
-        .status()
-        .expect("failed to run bootstrap");
-    Command::new("make")
-        .arg("-j")
-        .arg("12")
-        .status()
-        .expect("failed to run make");
-    Command::new("make")
-        .arg("install-tiledb")
-        .status()
-        .expect("failed to run make");
-    assert!(env::set_current_dir(current_dir).is_ok());
+    let vendored = env::var("CARGO_FEATURE_VENDORED").is_ok();
 
-    // Tell cargo to tell rustc to link the tiledb library.
-    println!("cargo:rustc-link-lib=dylib=tiledb");
-    // search for the library in a custom location
-    println!(
-        "cargo:rustc-link-search=native={}",
-        format!("{}/dist/lib", &out_dir),
-    );
+    if vendored {
+        // checkout the git submodule and build it
+        if !Path::new("TileDB/tiledb").exists() {
+            let status = Command::new("git")
+                .args(&["submodule", "update", "--init", "--recursive"])
+                .status()
+                .expect("git submodule should return 0");
+            assert!(status.success());
+        }
+
+        let mut options = CopyOptions::new();
+        options.skip_exist = true;
+        options.content_only = true;
+        copy("TileDB", &out_dir, &options).unwrap();
+
+        Command::new("mkdir")
+            .arg("-p")
+            .arg(format!("{}/build", &out_dir))
+            .arg(".")
+            .status()
+            .expect("failed to run bootstrap");
+
+        let current_dir = env::current_dir().unwrap();
+        assert!(env::set_current_dir(Path::new(&format!("{}/build", &out_dir))).is_ok());
+
+        // See https://docs.tiledb.com/main/how-to/installation/building-from-source/c-cpp
+        let status = Command::new("../bootstrap")
+            .arg("--disable-werror")
+            .arg("--disable-stats")
+            .arg("--disable-tests")
+            .arg("--disable-cpp-api")
+            .status()
+            .expect("failed to run bootstrap");
+        assert!(status.success());
+
+        let status = Command::new("make")
+            .arg("-j")
+            .arg(num_cpus::get().to_string())
+            .status()
+            .expect("failed to run make");
+        assert!(status.success());
+
+        // Installs to {}/TileDB/dist
+        Command::new("make")
+            .arg("install-tiledb")
+            .status()
+            .expect("failed to run make");
+        assert!(env::set_current_dir(current_dir).is_ok());
+
+        // Tell cargo to tell rustc to link the tiledb library.
+        println!("cargo:rustc-link-lib=dylib=tiledb");
+        // search for the library in a custom location
+        println!(
+            "cargo:rustc-link-search=native={}",
+            format!("{}/dist/lib", &out_dir),
+        );
+    } else {
+        // Use the system's tiledb library
+        // Cargo metadata will be printed to stdout if the search was successful
+        pkg_config::Config::new()
+            .atleast_version("2.4.0")
+            .probe("tiledb")
+            .expect("Build-time TileDB library missing, version >= 2.4 not found. Try the vendored feature.");
+    }
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
-    //println!("cargo:rerun-if-changed=wrapper.hpp");
+    println!("cargo:rerun-if-changed=wrapper.hpp");
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
@@ -55,8 +87,11 @@ fn main() {
         .rustified_enum(".*")
         .generate_inline_functions(true)
         .clang_args(vec![
+            // only relevant for submodule build,
+            // doesn't hurt to include it for system build
             format!("-I{}/dist/include", &out_dir),
-            "-std=c++11".to_string(),
+            // Require C++17 (TileDB >= 2.4)
+            "-std=c++17".to_string(),
         ])
         .enable_cxx_namespaces()
         .opaque_type("std::.*")

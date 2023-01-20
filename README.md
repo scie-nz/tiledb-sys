@@ -1,12 +1,23 @@
-# tiledb-rust-bind
+# tiledb-sys
+
 Rust Bindings for the [TileDB C API](https://tiledb-inc-tiledb.readthedocs-hosted.com/en/stable/c-api.html),
 generated using bindgen.
 
 # Usage
+
 `Cargo.toml`
+
+By default, it will attempt build bindings against `tiledb` on your system
+
 ```
 [dependencies]
-tiledb-sys = "0.1.1"
+tiledb-sys = "0.2.0"
+```
+
+Otherwise, use the `vendored` feature to build `tiledb` from a git submodule source.
+
+```
+tiledb-sys = { version = "0.2.0", features = ["vendored"] }
 ```
 
 `main.rs`:
